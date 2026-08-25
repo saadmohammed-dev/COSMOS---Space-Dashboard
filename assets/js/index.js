@@ -94,13 +94,23 @@ document.getElementById("today-apod-btn").addEventListener("click", getToday);
 // ** Launches ** //
 
 async function getLaunches() {
-  var response = await fetch(
-    "https://ll.thespacedevs.com/2.3.0/launches/upcoming/?format=json&limit=10",
-  );
-  var data = await response.json();
-  console.log(data);
-  displayMainLaunches(data.results[0]);
-  displayOtherLaunches(data.results);
+  try {
+    var response = await fetch(
+      "https://ll.thespacedevs.com/2.3.0/launches/upcoming/?format=json&limit=10",
+    );
+    if (!response.ok) throw new Error("Could not load launch data");
+
+    var data = await response.json();
+    var launches = data.results || [];
+    if (!launches.length) throw new Error("No upcoming launches found");
+
+    displayMainLaunches(launches[0]);
+    displayOtherLaunches(launches);
+  } catch (error) {
+    document.getElementById("featured-launch").innerHTML =
+      '<p class="text-slate-400">Unable to load upcoming launches right now.</p>';
+    document.getElementById("launches-grid").innerHTML = "";
+  }
 }
 
 function displayMainLaunches(data) {
@@ -119,7 +129,7 @@ function displayMainLaunches(data) {
                         Featured Launch
                       </span>
                       <span
-                        class=px-4 py-1.5 bg-${info.statusColor}-500/20 text-${info.statusColor}-400 rounded-full text-sm font-semibold>
+                        class="px-4 py-1.5 bg-${info.statusColor}-500/20 text-${info.statusColor}-400 rounded-full text-sm font-semibold">
                         ${info.status}
                       </span>
                     </div>
@@ -174,9 +184,9 @@ function displayMainLaunches(data) {
                         <p
                           class="text-xs text-slate-400 mb-1 flex items-center gap-2">
                           <i class="fas fa-globe"></i>
-                          ${info.country}
+                          Country
                         </p>
-                        <p class="font-semibold">USA</p>
+                        <p class="font-semibold">${info.country}</p>
                       </div>
                     </div>
                     <p class="text-slate-300 leading-relaxed mb-6">
@@ -207,7 +217,7 @@ function displayMainLaunches(data) {
                     <!-- Placeholder image/icon since we can't load external images reliably without correct URLs -->
                     <div
                       class="flex items-center justify-center h-full min-h-[400px] bg-slate-800">
-                        <img src=${info.image} alt ="rocket-image" class="w-full h-full"/>
+                        <img src="${info.image}" alt="${info.name}" class="w-full h-full object-cover" />
                       </div>
                     <div
                       class="absolute inset-0 bg-linear-to-t from-slate-900 via-transparent to-transparent"></div>
@@ -226,7 +236,7 @@ function displayOtherLaunches(results) {
               class="bg-slate-800/50 border border-slate-700 rounded-2xl overflow-hidden hover:border-blue-500/30 transition-all group cursor-pointer">
               <div
                 class="relative h-48 bg-slate-900/50 flex items-center justify-center">
-                <img src=${info.image} alt ="rocket-image" class="w-full h-full"/>
+                <img src="${info.image}" alt="${info.name}" class="w-full h-full object-cover" />
                 <div class="absolute top-3 right-3">
                   <span
                     class="px-3 py-1 bg-${info.statusColor}-500/90 text-white backdrop-blur-sm rounded-full text-xs font-semibold">
@@ -281,9 +291,9 @@ function displayOtherLaunches(results) {
 }
 
 function prepareLaunches(launche) {
-  var name = launche.name;
-  var provider = launche.launch_service_provider.name;
-  var rocket = launche.rocket.configuration.name;
+  var name = launche.name || "Upcoming launch";
+  var provider = launche.launch_service_provider?.name || "Unknown provider";
+  var rocket = launche.rocket?.configuration?.name || "Rocket details unavailable";
   var tipDate = new Date(launche.net);
   var diff = tipDate - new Date();
   var days = Math.ceil(diff / (24 * 60 * 60 * 1000));
@@ -299,16 +309,16 @@ function prepareLaunches(launche) {
       minute: "2-digit",
       timeZone: "UTC",
     }) + "UTC";
-  var location = launche.pad.location.name;
-  var country = launche.pad.country.name;
-  var image = launche.image.image_url;
-  var status = launche.status.abbrev;
+  var location = launche.pad?.location?.name || "Location to be announced";
+  var country = launche.pad?.country?.name || "Not available";
+  var image = launche.image?.image_url || "./assets/images/launch-placeholder.png";
+  var status = launche.status?.abbrev || "TBD";
   var statusColor = {
     Go: "green",
     TBD: "red",
     TBC: "yellow",
-  }[status];
-  var desc = launche.status.description;
+  }[status] || "slate";
+  var desc = launche.status?.description || "Launch status has not been announced yet.";
   return {
     name,
     provider,
@@ -335,7 +345,6 @@ async function getPlanets() {
   );
 
   var data = await response.json();
-  console.log(data);
   displayPlanets(data.bodies);
   displayPlanetData(data.bodies[6]);
   displayComparison(data.bodies);
